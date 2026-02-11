@@ -13,7 +13,7 @@ public class AuthService : IAuthService
     private readonly SignInManager<User> _signInManager;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly IRefreshTokenService _refreshTokenService;
-    private readonly IOptions<JwtOptions> jwtOptions;
+    private readonly JwtOptions _jwtOptions;
 
 
 
@@ -30,7 +30,7 @@ public class AuthService : IAuthService
         _jwtOptions = jwtOptions.Value;
     }
 
-   
+
 
     public async Task<(bool Success, string? Error)> RegisterAsync(
         RegisterReq request,
@@ -102,3 +102,4 @@ public class AuthService : IAuthService
         };
     }
 }
+

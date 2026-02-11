@@ -16,6 +16,18 @@ public class AuthController : ControllerBase
         _authService = authService;
     }
 
+    [HttpPost("register")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Register(RegisterReq request)
+    {
+        var (success, error) = await _authService.RegisterAsync(request);
+
+        if (!success)
+            return BadRequest(new { message = error });
+
+        return Ok(new { message = "Qeydiyyat uğurla tamamlandı. İndi login ola bilərsiniz." });
+    }
+
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login(LoginReq request)

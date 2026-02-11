@@ -4,6 +4,7 @@ using Application.Abstracts.Services;
 using Application.Abstracts.Services.Simple;
 using Application.Mapping;
 using Application.Options;
+using Application.Validations.Auth;
 using Application.Validations.City;
 using Application.Validations.PropertyAd;
 using Application.Validations.Street;
@@ -32,7 +33,41 @@ public static class ServiceRegistration
         // ===================== MVC & Swagger =====================
         services.AddControllers();
         services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen();
+        services.AddSwaggerGen(options =>
+        {
+            options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+            {
+                Title = "BinaAz API",
+                Version = "v1",
+                Description = "Daşınmaz əmlak elanları API"
+            });
+
+            // JWT Authentication üçün Swagger konfiqurasiyası
+            options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Name = "Authorization",
+                Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "JWT",
+                In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+                Description = "JWT Authorization header. Məsələn: Bearer {token}"
+            });
+
+            options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+            {
+                {
+                    new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                    {
+                        Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                        {
+                            Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        }
+                    },
+                    Array.Empty<string>()
+                }
+            });
+        });
 
         // ===================== DbContext =====================
         services.AddDbContext<BinaLiteDbContext>(options =>
@@ -64,10 +99,16 @@ public static class ServiceRegistration
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuthService, AuthService>();
 
+        // ===================== Refresh Token =====================
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+
         // ===================== Validators =====================
         services.AddValidatorsFromAssemblyContaining<CreatePropertyAdRequestValidator>();
         services.AddValidatorsFromAssemblyContaining<CreateCityRequestValidator>();
         services.AddValidatorsFromAssemblyContaining<CreateStreetRequestValidator>();
+        services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
+        services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 
         // ===================== AutoMapper =====================
         services.AddAutoMapper(cfg => { },

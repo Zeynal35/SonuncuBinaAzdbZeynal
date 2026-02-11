@@ -1,10 +1,10 @@
-﻿using System.Security.Cryptography;
-using System.Text;
-using Application.Abstracts.Repositories;
+﻿using Application.Abstracts.Repositories;
 using Application.Abstracts.Services;
 using Application.Options;
 using Domain.Entities;
 using Microsoft.Extensions.Options;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Persistence.Services;
 
@@ -57,5 +57,8 @@ public class RefreshTokenService : IRefreshTokenService
         return refreshToken.User;
     }
 }
+
+
+
 
 
