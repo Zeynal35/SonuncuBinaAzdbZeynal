@@ -32,7 +32,6 @@ public static class ServiceRegistration
     {
         // ===================== MVC & Swagger =====================
         services.AddControllers();
-        services.AddAuthorization();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(options =>
         {
@@ -87,6 +86,9 @@ public static class ServiceRegistration
         .AddJwtBearer();
 
         services.ConfigureOptions<ConfigureJwtBearerOptions>();
+
+        // ===================== Authorization =====================
+        services.AddAuthorization();
 
         // ===================== Identity - JWT-den SONRA yazilir =====================
         services.AddIdentity<User, IdentityRole>(options =>

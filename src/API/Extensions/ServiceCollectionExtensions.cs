@@ -39,10 +39,11 @@ public static class ServiceCollectionExtensions
         // =========================
         // JWT Authentication
         // =========================
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer();
-
+       services
+       .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+       .AddJwtBearer();
         services.ConfigureOptions<ConfigureJwtBearerOptions>();
+
 
         // =========================
         // Swagger JWT Support
