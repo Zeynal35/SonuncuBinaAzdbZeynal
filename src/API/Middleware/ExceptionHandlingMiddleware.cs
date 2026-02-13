@@ -1,5 +1,4 @@
-﻿using System.Net;
-using System.Text.Json;
+﻿using System.Text.Json;
 using FluentValidation;
 
 namespace API.Middlewares;
@@ -39,15 +38,13 @@ public class ExceptionHandlingMiddleware
 
     private async Task WriteResponse(HttpContext context, int statusCode, string message, object? detail = null)
     {
+        // Cavab artiq yazılıbsa (məsələn redirect), üstündən yaza bilmərik
+        if (context.Response.HasStarted) return;
+
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/json";
 
-        var response = new
-        {
-            statusCode,
-            message,
-            detail
-        };
+        var response = new { statusCode, message, detail };
 
         await context.Response.WriteAsync(JsonSerializer.Serialize(response));
     }

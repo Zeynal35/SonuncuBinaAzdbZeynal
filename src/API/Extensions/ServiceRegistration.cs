@@ -32,6 +32,7 @@ public static class ServiceRegistration
     {
         // ===================== MVC & Swagger =====================
         services.AddControllers();
+        services.AddAuthorization();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(options =>
         {
@@ -42,7 +43,6 @@ public static class ServiceRegistration
                 Description = "Daşınmaz əmlak elanları API"
             });
 
-            // JWT Authentication üçün Swagger konfiqurasiyası
             options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
             {
                 Name = "Authorization",
@@ -74,7 +74,21 @@ public static class ServiceRegistration
             options.UseSqlServer(
                 configuration.GetConnectionString("DefaultConnection")));
 
-        // ===================== Identity =====================
+        // ===================== JWT - AddIdentity-den EVVEL yazilir =====================
+        services.Configure<JwtOptions>(
+            configuration.GetSection(JwtOptions.SectionName));
+
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer();
+
+        services.ConfigureOptions<ConfigureJwtBearerOptions>();
+
+        // ===================== Identity - JWT-den SONRA yazilir =====================
         services.AddIdentity<User, IdentityRole>(options =>
         {
             options.Password.RequireDigit = false;
@@ -87,14 +101,20 @@ public static class ServiceRegistration
         .AddEntityFrameworkStores<BinaLiteDbContext>()
         .AddDefaultTokenProviders();
 
-        // ===================== JWT =====================
-        services.Configure<JwtOptions>(
-            configuration.GetSection(JwtOptions.SectionName));
-
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer();
-
-        services.ConfigureOptions<ConfigureJwtBearerOptions>();
+        // AddIdentity-nin cookie redirect-ini söndür - API-da lazım deyil
+        services.ConfigureApplicationCookie(options =>
+        {
+            options.Events.OnRedirectToLogin = context =>
+            {
+                context.Response.StatusCode = 401;
+                return Task.CompletedTask;
+            };
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                context.Response.StatusCode = 403;
+                return Task.CompletedTask;
+            };
+        });
 
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuthService, AuthService>();
@@ -133,7 +153,7 @@ public static class ServiceRegistration
         // ===================== Form Options =====================
         services.Configure<FormOptions>(options =>
         {
-            options.MultipartBodyLengthLimit = 50 * 1024 * 1024; // 50MB
+            options.MultipartBodyLengthLimit = 50 * 1024 * 1024;
         });
     }
 }

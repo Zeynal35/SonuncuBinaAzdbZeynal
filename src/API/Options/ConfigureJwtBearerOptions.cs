@@ -7,7 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace API.Options;
 
 public class ConfigureJwtBearerOptions
-    : IConfigureOptions<JwtBearerOptions>
+    : IConfigureNamedOptions<JwtBearerOptions>
 {
     private readonly JwtOptions _jwt;
 
@@ -16,8 +16,10 @@ public class ConfigureJwtBearerOptions
         _jwt = jwt.Value;
     }
 
-    public void Configure(JwtBearerOptions options)
+    public void Configure(string? name, JwtBearerOptions options)
     {
+        if (name != JwtBearerDefaults.AuthenticationScheme) return;
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -33,4 +35,7 @@ public class ConfigureJwtBearerOptions
             ClockSkew = TimeSpan.Zero
         };
     }
+
+    public void Configure(JwtBearerOptions options)
+        => Configure(JwtBearerDefaults.AuthenticationScheme, options);
 }

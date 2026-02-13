@@ -2,14 +2,16 @@
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers(); // ⭐ BU MÜTLƏQDİR
+// AddControllers() artıq AddMyServices() içindədir - burada təkrar çağırmaq lazım deyil
 builder.Services.AddMyServices(builder.Configuration);
 
 var app = builder.Build();
 
-app.UseMyMiddlewares();
+// Middleware sırası DÜZELDİLDİ - ASP.NET Core standart pipeline
+app.UseMyMiddlewares(); // Swagger, StaticFiles, HttpsRedirection
 
-app.UseAuth();   // auth middleware
+app.UseAuthentication(); // JWT token oxunur
+app.UseAuthorization();  // [Authorize] yoxlanılır
 
 app.MapControllers();
 
