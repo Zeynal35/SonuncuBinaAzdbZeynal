@@ -17,7 +17,11 @@ public static class MiddlewareSetup
         }
 
         app.UseHttpsRedirection();
-        app.UseAuthorization();
-        app.MapControllers();
+
+        // AUTH BURDA OLMAMALIDIR ❌
+        // app.UseAuthentication();
+        // app.UseAuthorization();
+        // app.MapControllers();
     }
+
 }
