@@ -1,4 +1,5 @@
-﻿using Application.Abstracts.Services;
+﻿// 3️⃣ FAYL: src/API/Controllers/AuthController.cs
+using Application.Abstracts.Services;
 using Application.DTOs.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,10 +11,14 @@ namespace API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService)
+    public AuthController(
+        IAuthService authService,
+        ILogger<AuthController> logger)
     {
         _authService = authService;
+        _logger = logger;
     }
 
     [HttpPost("register")]
@@ -32,10 +37,19 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> Login(LoginReq request)
     {
+        _logger.LogInformation("🔑 Login attempt for: {Login}", request.Login);
+
         var result = await _authService.LoginAsync(request);
 
         if (result is null)
+        {
+            _logger.LogWarning("   ❌ Login failed for: {Login}", request.Login);
             return Unauthorized("Login və ya şifrə yanlışdır");
+        }
+
+        _logger.LogInformation("   ✅ Login successful!");
+        _logger.LogInformation("   Token issued (first 50 chars): {Token}...",
+            result.AccessToken[..Math.Min(50, result.AccessToken.Length)]);
 
         return Ok(result);
     }
