@@ -1,163 +1,124 @@
-﻿using Application.Abstracts.Repositories;
+﻿using API.Options;
+using Application.Abstracts.Repositories;
 using Application.Abstracts.Repositories.SimpleRepo;
 using Application.Abstracts.Services;
 using Application.Abstracts.Services.Simple;
-using Application.Mapping;
 using Application.Options;
-using Application.Validations.Auth;
-using Application.Validations.City;
-using Application.Validations.PropertyAd;
-using Application.Validations.Street;
+using Domain.Constants;
+using Domain.Entities;
 using FluentValidation;
+using Infrastructure.Extensions;
+using Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.OpenApi.Models;
 using Persistence.Context;
 using Persistence.Repositories;
 using Persistence.Repositories.Simple;
 using Persistence.Services;
-using Infrastructure.Extensions;
-using Infrastructure.Services;
-using Domain.Entities;
-using API.Options;
-using Microsoft.OpenApi.Models;
 
 namespace API.Extensions;
 
 public static class ServiceRegistration
 {
-    public static void AddMyServices(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    public static void AddMyServices(this IServiceCollection services, IConfiguration configuration)
     {
-        // ===================== MVC & Swagger =====================
+        // ===================== Controllers & Swagger =====================
         services.AddControllers();
+
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(options =>
         {
             options.SwaggerDoc("v1", new OpenApiInfo
             {
                 Title = "BinaAz API",
-                Version = "v1",
-                Description = "Daşınmaz əmlak elanları API"
+                Version = "v1"
             });
 
-            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            // Swagger JWT
+            var securityScheme = new OpenApiSecurityScheme
             {
                 Name = "Authorization",
+                Description = "Bearer {token}",
+                In = ParameterLocation.Header,
                 Type = SecuritySchemeType.Http,
                 Scheme = "bearer",
                 BearerFormat = "JWT",
-                In = ParameterLocation.Header,
-                // IMPORTANT: Http bearer scheme olanda Swagger-ə tokenin özünü yapışdırırsan (Bearer yazmırsan)
-                Description = "Tokeni bura yapışdır (Bearer yazma)."
-            });
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = JwtBearerDefaults.AuthenticationScheme
+                }
+            };
 
+            options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, securityScheme);
             options.AddSecurityRequirement(new OpenApiSecurityRequirement
             {
-                {
-                    new OpenApiSecurityScheme
-                    {
-                        Reference = new OpenApiReference
-                        {
-                            Type = ReferenceType.SecurityScheme,
-                            Id = "Bearer"
-                        }
-                    },
-                    Array.Empty<string>()
-                }
+                { securityScheme, new List<string>() }
             });
         });
 
-        // ===================== DbContext =====================
-        services.AddDbContext<BinaLiteDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
-
-        // ===================== JWT Options =====================
+        // ===================== Options =====================
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services.Configure<SeedOptions>(configuration.GetSection(SeedOptions.SectionName));
 
-        // ===================== Identity (ƏVVƏL Identity) =====================
+        // ===================== DB =====================
+        services.AddDbContext<BinaLiteDbContext>(opt =>
+            opt.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+
+        // ===================== Identity =====================
         services.AddIdentity<User, IdentityRole>(options =>
         {
             options.Password.RequireDigit = false;
             options.Password.RequireLowercase = false;
-            options.Password.RequireNonAlphanumeric = false;
             options.Password.RequireUppercase = false;
+            options.Password.RequireNonAlphanumeric = false;
             options.Password.RequiredLength = 6;
-            options.User.RequireUniqueEmail = true;
         })
         .AddEntityFrameworkStores<BinaLiteDbContext>()
         .AddDefaultTokenProviders();
 
-        // Identity cookie redirect-ini API üçün söndürürük
-        services.ConfigureApplicationCookie(options =>
-        {
-            options.Events.OnRedirectToLogin = context =>
-            {
-                context.Response.StatusCode = 401;
-                return Task.CompletedTask;
-            };
-            options.Events.OnRedirectToAccessDenied = context =>
-            {
-                context.Response.StatusCode = 403;
-                return Task.CompletedTask;
-            };
-        });
-
-        // ===================== Authentication (SONRA JWT default et) =====================
-        services.AddAuthentication(options =>
-        {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-        })
-        .AddJwtBearer();
+        // ===================== JWT Auth =====================
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer();
 
         services.ConfigureOptions<ConfigureJwtBearerOptions>();
 
-        // ===================== Authorization =====================
-        services.AddAuthorization();
+        // ===================== Authorization (Policies) =====================
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(Policies.ManageCities, p =>
+                p.RequireRole(RoleNames.Admin));
 
-        // ===================== Auth Services =====================
-        services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+            options.AddPolicy(Policies.ManageProperties, p =>
+                p.RequireAuthenticatedUser());
+        });
+
+        // ===================== DI (Repositories/Services) =====================
+        services.AddScoped(typeof(IRepository<,>), typeof(Repository<,>));
+
+        // səndə SimpleRepo-lar var idi
+        services.AddScoped(typeof(ISimpleRepository<>), typeof(SimpleRepository<>));
+
         services.AddScoped<IAuthService, AuthService>();
-
-        // ===================== Refresh Token =====================
-        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
-        // ===================== Validators =====================
-        services.AddValidatorsFromAssemblyContaining<CreatePropertyAdRequestValidator>();
-        services.AddValidatorsFromAssemblyContaining<CreateCityRequestValidator>();
-        services.AddValidatorsFromAssemblyContaining<CreateStreetRequestValidator>();
-        services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
-        services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
+        // Infrastructure-lar (məs: MinIO varsa)
+        services.AddInfrastructure(configuration);
 
-        // ===================== AutoMapper =====================
-        services.AddAutoMapper(cfg => { },
-            typeof(PropertyAdProfile).Assembly,
-            typeof(CityProfile).Assembly);
+        // ===================== FluentValidation =====================
+        services.AddValidatorsFromAssembly(AppDomain.CurrentDomain.GetAssemblies().First(a => a.GetName().Name == "Application"));
 
-        // ===================== Repositories =====================
-        services.AddScoped(typeof(IRepository<,>), typeof(GenericRepository<,>));
-
-        // ===================== Services =====================
-        services.AddScoped<IPropertyAdService, PropertyAdServices>();
-        services.AddScoped<ICityServices, CityService>();
-        services.AddScoped<IStreetService, StreetService>();
-        services.AddScoped<ICarsImageRepo, CarsImageRepository>();
-        services.AddScoped<ICarsImageService, CarsImageService>();
-        services.AddScoped<IPropertyMediaService, PropertyMediaService>();
-
-        // ===================== MinIO =====================
-        services.AddMinioStorage(configuration);
-        services.AddScoped<IFileStorageService, S3MinioFileStorageService>();
-
-        // ===================== Form Options =====================
-        services.Configure<FormOptions>(options =>
+        // ===================== File Upload Limit =====================
+        services.Configure<FormOptions>(opt =>
         {
-            options.MultipartBodyLengthLimit = 50 * 1024 * 1024;
+            opt.MultipartBodyLengthLimit = 100 * 1024 * 1024;
         });
     }
 }
+

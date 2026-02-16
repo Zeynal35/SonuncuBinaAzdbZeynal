@@ -18,19 +18,21 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         _options = options.Value;
     }
 
-    public string GenerateToken(User user)
+    public string GenerateAccessToken(User user, IEnumerable<string> roles)
     {
         var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, user.Id),
-            new Claim(ClaimTypes.Email, user.Email!)
+            new(JwtRegisteredClaimNames.Sub, user.Id),
+            new(JwtRegisteredClaimNames.Email, user.Email ?? ""),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new("fullName", user.FullName ?? "")
         };
 
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_options.Secret));
+        foreach (var role in roles)
+            claims.Add(new Claim(ClaimTypes.Role, role));
 
-        var creds = new SigningCredentials(
-            key, SecurityAlgorithms.HmacSha256);
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Secret));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
             issuer: _options.Issuer,

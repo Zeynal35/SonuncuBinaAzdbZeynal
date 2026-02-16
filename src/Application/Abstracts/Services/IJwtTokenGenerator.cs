@@ -1,11 +1,10 @@
-﻿namespace Application.Abstracts.Services;
+﻿using Domain.Entities;
 
-    using Domain.Entities;
+namespace Application.Abstracts.Services;
 
-
-    public interface IJwtTokenGenerator
-    {
-        string GenerateToken(User user);
-    }
+public interface IJwtTokenGenerator
+{
+    string GenerateAccessToken(User user, IEnumerable<string> roles);
+}
 
 
