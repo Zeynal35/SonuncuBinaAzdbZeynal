@@ -21,6 +21,7 @@ using Infrastructure.Extensions;
 using Infrastructure.Services;
 using Domain.Entities;
 using API.Options;
+using Microsoft.OpenApi.Models;
 
 namespace API.Extensions;
 
@@ -35,31 +36,32 @@ public static class ServiceRegistration
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(options =>
         {
-            options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+            options.SwaggerDoc("v1", new OpenApiInfo
             {
                 Title = "BinaAz API",
                 Version = "v1",
                 Description = "Daşınmaz əmlak elanları API"
             });
 
-            options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
                 Name = "Authorization",
-                Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+                Type = SecuritySchemeType.Http,
                 Scheme = "bearer",
                 BearerFormat = "JWT",
-                In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-                Description = "JWT Authorization header. Məsələn: Bearer {token}"
+                In = ParameterLocation.Header,
+                // IMPORTANT: Http bearer scheme olanda Swagger-ə tokenin özünü yapışdırırsan (Bearer yazmırsan)
+                Description = "Tokeni bura yapışdır (Bearer yazma)."
             });
 
-            options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+            options.AddSecurityRequirement(new OpenApiSecurityRequirement
             {
                 {
-                    new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                    new OpenApiSecurityScheme
                     {
-                        Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                        Reference = new OpenApiReference
                         {
-                            Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                            Type = ReferenceType.SecurityScheme,
                             Id = "Bearer"
                         }
                     },
@@ -70,27 +72,12 @@ public static class ServiceRegistration
 
         // ===================== DbContext =====================
         services.AddDbContext<BinaLiteDbContext>(options =>
-            options.UseSqlServer(
-                configuration.GetConnectionString("DefaultConnection")));
+            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
-        // ===================== JWT - AddIdentity-den EVVEL yazilir =====================
-        services.Configure<JwtOptions>(
-            configuration.GetSection(JwtOptions.SectionName));
+        // ===================== JWT Options =====================
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
 
-        services.AddAuthentication(options =>
-        {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-        })
-        .AddJwtBearer();
-
-        services.ConfigureOptions<ConfigureJwtBearerOptions>();
-
-        // ===================== Authorization =====================
-        services.AddAuthorization();
-
-        // ===================== Identity - JWT-den SONRA yazilir =====================
+        // ===================== Identity (ƏVVƏL Identity) =====================
         services.AddIdentity<User, IdentityRole>(options =>
         {
             options.Password.RequireDigit = false;
@@ -103,7 +90,7 @@ public static class ServiceRegistration
         .AddEntityFrameworkStores<BinaLiteDbContext>()
         .AddDefaultTokenProviders();
 
-        // AddIdentity-nin cookie redirect-ini söndür - API-da lazım deyil
+        // Identity cookie redirect-ini API üçün söndürürük
         services.ConfigureApplicationCookie(options =>
         {
             options.Events.OnRedirectToLogin = context =>
@@ -118,6 +105,21 @@ public static class ServiceRegistration
             };
         });
 
+        // ===================== Authentication (SONRA JWT default et) =====================
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer();
+
+        services.ConfigureOptions<ConfigureJwtBearerOptions>();
+
+        // ===================== Authorization =====================
+        services.AddAuthorization();
+
+        // ===================== Auth Services =====================
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuthService, AuthService>();
 
